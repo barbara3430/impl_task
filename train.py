@@ -30,7 +30,6 @@ def train(params, data):
         start = datetime.now()
 
         loss = 0.0
-        # model.train()
         train_iterator = data.train_iter
         for i, batch in enumerate(train_iterator):
             model.train()
@@ -56,11 +55,6 @@ def train(params, data):
 
             if params['cuda']:
                 torch.cuda.empty_cache()
-
-            # test(args, model, data, criterion, moving_average)
-
-        log.info('\n')
-        test(params, model, data, criterion, moving_average)
 
 
 def init_optimizer(params, model):
@@ -144,8 +138,6 @@ def test(params, model, data, criterion, moving_average):
         if param.requires_grad:
             param.data.copy_(current_params_bck.get(name))
 
-    #print('total: {}'.format(total))
-    #print('matches: {}'.format(matches))
     print('----------- Official EM: {0:.2f} Strict EM: {1:.2f}'.format(official_results['exact_match'], 100.0 * matches/total))
 
 
