@@ -112,7 +112,7 @@ class BidafModel(nn.Module):
 
         q_mask = get_loss_mask(q_lengths).unsqueeze(1)
 
-        s_hu = nn.ModuleList()
+        s_hu = []
         for i in range(q_seq_len):
             # batch, 1, hidden_size * 2
             qi = q.select(1, i).unsqueeze(1)
