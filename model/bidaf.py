@@ -18,12 +18,15 @@ class BidafModel(nn.Module):
         # init char embeddings to random vectors
         self.char_emb = nn.Embedding(len(data.CHAR.vocab), params['char_out_size'], padding_idx=1)
         nn.init.uniform_(self.char_emb.weight, -0.001, 0.001)
+        self.char_emb.weight.data[1] = 0
+
         self.char_conv = nn.Conv1d(in_channels=params['char_out_size'], out_channels=params['out_channel_dims'],
                                    kernel_size=params['filter_heights'])
 
         # 2. Word Embedding Layer.
         # word embeddings are not fine-tuned
         self.word_embed = nn.Embedding.from_pretrained(data.WORD.vocab.vectors, freeze=True)
+        self.word_embed.weight.data[1] = 0
 
         # highway network
         self.hn_transform = nn.ModuleList()
@@ -109,7 +112,7 @@ class BidafModel(nn.Module):
         c_seq_len = c.size(1)
         q_seq_len = q.size(1)
 
-
+        c_mask = get_loss_mask(c_lengths)
         q_mask = get_loss_mask(q_lengths).unsqueeze(1)
 
         s_hu = []
@@ -128,14 +131,17 @@ class BidafModel(nn.Module):
         # batch, c_seq_len, q_seq_len
         s = self.attention_weight_c(c).expand(-1, -1, q_seq_len) + self.attention_weight_q(q).permute(0, 2, 1).expand(-1, c_seq_len, -1) + s_hu
 
-        a = F.softmax(s, dim=2)
+        # a = F.softmax(s, dim=2)
+        a = masked_softmax(s, q_mask)
 
         c2q = torch.bmm(a, q)
 
         # mask scores outside sentence len bounds to eliminate their influence on max function
         s_masked = s.masked_fill((1 - q_mask).byte(), -1e10)
 
-        b = F.softmax(torch.max(s_masked, dim=2)[0], dim=1)
+        # b = F.softmax(torch.max(s_masked, dim=2)[0], dim=1)
+        b = torch.max(s_masked, dim=2)[0]
+        b = masked_softmax(b, c_mask)
 
         q2c = torch.bmm(b.unsqueeze(1), c).squeeze()
         q2c = q2c.unsqueeze(1).expand(-1, c_seq_len, -1)
